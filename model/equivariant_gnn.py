@@ -117,7 +117,7 @@ class EquivariantGraphConv(MessagePassing):
         else:
             return self.propagate(edge_index, x=x_s, edge_attr=edge_attr, pos=pos)
     
-    def message(self, x_i, x_j, edge_attr, pos_i, pos_j):
+    def message(self, x_i, x_j, edge_attr, pos_i=None, pos_j=None):
         """
         Message function for message passing.
         
@@ -125,8 +125,8 @@ class EquivariantGraphConv(MessagePassing):
             x_i: Features of target nodes
             x_j: Features of source nodes
             edge_attr: Edge features
-            pos_i: Positions of target nodes
-            pos_j: Positions of source nodes
+            pos_i: Positions of target nodes (optional)
+            pos_j: Positions of source nodes (optional)
             
         Returns:
             Messages to be aggregated
@@ -139,10 +139,19 @@ class EquivariantGraphConv(MessagePassing):
             x_s_i, x_v_i = x_i, None
             x_s_j, x_v_j = x_j, None
             
-        # Calculate edge direction and normalize
-        edge_vec = pos_j - pos_i
-        edge_length = torch.norm(edge_vec, dim=1, keepdim=True) + 1e-6
-        edge_direction = edge_vec / edge_length
+        # Check if position information is available
+        has_positions = (pos_i is not None and pos_j is not None)
+        
+        if has_positions:
+            # Calculate edge direction and normalize
+            edge_vec = pos_j - pos_i
+            edge_length = torch.norm(edge_vec, dim=1, keepdim=True) + 1e-6
+            edge_direction = edge_vec / edge_length
+        else:
+            # Use a dummy direction if positions are not available
+            if x_s_i.size(0) > 0:  # Check if there are nodes
+                batch_size = x_s_i.size(0)
+                edge_direction = torch.zeros(batch_size, 3, device=x_s_i.device)
         
         # Process scalar features
         if edge_attr is not None:
@@ -163,11 +172,14 @@ class EquivariantGraphConv(MessagePassing):
             # Apply transformation and ensure equivariance
             message_v = torch.matmul(trans_matrix, x_v_j.unsqueeze(-1)).squeeze(-1)
             
-            # Project along edge direction for equivariance
-            edge_direction = edge_direction.unsqueeze(1)  # [N, 1, 3]
-            projection = torch.sum(message_v.unsqueeze(-1) * edge_direction.unsqueeze(1), dim=-2)
-            
-            return message_s, projection
+            # Project along edge direction for equivariance if positions are available
+            if has_positions:
+                edge_direction = edge_direction.unsqueeze(1)  # [N, 1, 3]
+                projection = torch.sum(message_v.unsqueeze(-1) * edge_direction.unsqueeze(1), dim=-2)
+                return message_s, projection
+            else:
+                # Skip the projection if no positions
+                return message_s, message_v
         else:
             return message_s
         

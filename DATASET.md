@@ -1,8 +1,19 @@
-# Sustainable Topological Quantum Materials Dataset
+# Sustainable Topological Quantum Materials Dataset Documentation
 
-This document provides an overview of the dataset structure, contents, and usage guidelines for the Sustainable Topological Quantum Materials project.
+This document provides comprehensive information about the dataset for the Sustainable Topological Quantum Materials project, including both the real dataset structure and the synthetic data generation approach.
 
-## Overview
+## Table of Contents
+
+1. [Dataset Overview](#dataset-overview)
+2. [Dataset Structure](#dataset-structure)
+3. [Dataset Contents](#dataset-contents)
+4. [Using the Dataset](#using-the-dataset)
+5. [Synthetic Data Generation](#synthetic-data-generation)
+6. [Data Characteristics](#data-characteristics)
+7. [Limitations and Future Improvements](#limitations-and-future-improvements)
+8. [Citation and License](#citation-and-license)
+
+## Dataset Overview
 
 This dataset is designed for training generative machine learning models to discover novel materials that combine topological properties with sustainability. It contains crystal structures, electronic properties, topological classifications, and sustainability metrics for up to 40,000 materials.
 
@@ -205,7 +216,107 @@ for idx, row in training_df.iterrows():
         print(f"Error processing {material_id}: {e}")
 ```
 
-## Important Notes
+## Synthetic Data Generation
+
+When the actual JARVIS database is unavailable, we provide a synthetic data generation solution that mimics the expected properties and structures of topological quantum materials.
+
+### Quick Start for Synthetic Data
+
+To generate the synthetic data:
+
+```bash
+# Make the script executable
+chmod +x generate_synthetic_data.sh
+
+# Run the script
+./generate_synthetic_data.sh
+```
+
+The script will create a `data` directory with a structure matching what would be downloaded from the real database.
+
+### Synthetic Data Generation Approach
+
+#### Crystal Structures
+
+The synthetic data generator creates:
+
+- Random crystal structures with 1-4 elements
+- Reasonable lattice parameters and atomic positions
+- Biased selection of elements and space groups known to host topological phases
+- POSCAR files compatible with pymatgen
+
+#### Material Properties
+
+For each structure, synthetic properties are generated including:
+
+- Band gaps (influenced by topological classification)
+- Formation energies and stability metrics
+- Topological classifications and Z2 invariants
+- Density and other physical properties
+
+#### Sustainability Metrics
+
+For each element, the generator creates:
+
+- Abundance scores (based on natural abundance patterns)
+- Toxicity ratings (higher for toxic elements like Hg, Pb, etc.)
+- Recyclability scores
+- Overall sustainability scores
+
+#### Combined Metrics
+
+The generator also calculates combined scores:
+
+- Topological scores based on band gap and element composition
+- Stability scores based on energy above hull
+- Overall scores balancing topological, stability, and sustainability concerns
+
+### Configuration Options
+
+The generator has several configuration options in the script:
+
+- `num_materials`: Total number of materials to generate (default: 5000)
+- `num_topological`: Number of topological materials (default: 800)
+- `training_subset_size`: Size of training subset (default: 2000)
+- `random_seed`: For reproducibility (default: 42)
+- Lists of elements, topological elements, and space groups
+
+These can be adjusted in the Python script as needed.
+
+## Data Characteristics
+
+The synthetic data mimics key patterns found in real topological materials:
+
+1. **Topological materials** tend to:
+   - Have smaller band gaps (< 0.3 eV)
+   - Include elements like Bi, Sb, Te, Se, etc.
+   - Occur in certain space groups
+   - Have specific Z2 invariants
+
+2. **Sustainability patterns**:
+   - Common elements have higher abundance scores
+   - Toxic elements have higher toxicity ratings
+   - Recyclable elements have higher recyclability scores
+
+3. **Structure-property relationships**:
+   - Complex materials tend to have lower formation energies
+   - Larger unit cells affect physical properties
+   - Element combinations influence stability
+
+## Limitations and Future Improvements
+
+### Limitations
+
+The synthetic data has some limitations compared to real JARVIS data:
+
+- Less accurate structure-property relationships
+- Simplified band structure and topological classifications
+- Less nuanced element distribution patterns
+- Limited physical consistency (some structures may be unrealistic)
+
+However, it provides a suitable substitute for developing and testing the model architecture before acquiring real data.
+
+### Important Notes
 
 1. **Structure Files:** Crystal structures are stored in VASP POSCAR format, compatible with `pymatgen` and other materials science libraries.
 
@@ -218,7 +329,16 @@ for idx, row in training_df.iterrows():
    - 32+ GB of RAM for full processing
    - 16+ GB of GPU memory for training graph neural networks
 
-## Citation
+### Future Improvements
+
+Future versions of the synthetic data generator could include:
+
+- More sophisticated crystal structure generation based on space group symmetry
+- DFT-informed property correlations
+- Improved topological classification based on symmetry indicators
+- More accurate sustainability metrics from real-world data
+
+## Citation and License
 
 If you use this dataset in your research, please cite:
 
@@ -233,7 +353,7 @@ If you use this dataset in your research, please cite:
 }
 ```
 
-## License
+### License
 
 This dataset and accompanying code are made available under the MIT License:
 
@@ -259,6 +379,4 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-```
-
-Individual data sources (Materials Project, etc.) are subject to their own licenses. When using the Materials Project data, please cite the appropriate references as required by their terms of use.
+``` 

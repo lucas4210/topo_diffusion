@@ -120,7 +120,7 @@ def analyze_dataset_statistics(datasets):
         std = materials[score_type].std()
         print(f"{score_type}: Mean={mean:.3f}, Median={median:.3f}, Std={std:.3f}")
 
-def plot_dataset_visualizations(datasets, output_dir="./visualizations"):
+def plot_dataset_visualizations(datasets, output_dir="./results/data_analytics"):
     """
     Create and save visualizations of the synthetic dataset.
     
@@ -371,7 +371,7 @@ def main():
     parser = argparse.ArgumentParser(description="Analyze synthetic data for topological quantum materials.")
     parser.add_argument("--data_path", default=os.path.join(project_dir, "data"), 
                         help="Path to the data directory")
-    parser.add_argument("--output_dir", default=os.path.join(project_dir, "visualizations"), 
+    parser.add_argument("--output_dir", default=os.path.join(project_dir, "results/data_analytics"), 
                         help="Directory to save visualizations")
     parser.add_argument("--analyze_structures", action="store_true", help="Analyze crystal structures")
     parser.add_argument("--sample_size", type=int, default=5, help="Number of structures to analyze")
