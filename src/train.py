@@ -37,8 +37,8 @@ if numpy_version.startswith('2.'):
 
 # Import project modules
 try:
-    from src.data import CrystalGraphDataset, CrystalGraphConverter, CrystalGraphCollator
-    from src.model import CrystalGraphDiffusionModel
+    from data import CrystalGraphDataset, CrystalGraphConverter, CrystalGraphCollator
+    from model import CrystalGraphDiffusionModel
 except ImportError as e:
     logger.error(f"Import error: {e}")
     logger.error("This may be due to NumPy version incompatibility or missing dependencies.")
