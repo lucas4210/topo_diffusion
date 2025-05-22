@@ -244,7 +244,8 @@ class EquivariantGraphConv(MessagePassing):
             hidden_dim: Hidden dimension
             aggr: Aggregation method ("mean", "sum", "max")
         """
-        super().__init__(aggr=aggr)
+        # Set node_dim explicitly for torch_geometric
+        super().__init__(aggr=aggr, node_dim=0)
         self.node_dim = node_dim
         self.edge_dim = edge_dim
         self.hidden_dim = hidden_dim
