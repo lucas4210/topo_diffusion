@@ -15,10 +15,7 @@ import logging
 from tqdm import tqdm
 import argparse
 from datetime import datetime
-
-# Import project modules
-from data import CrystalGraphDataset, CrystalGraphConverter, CrystalGraphCollator
-from model import CrystalGraphDiffusionModel
+import sys
 
 # Configure logging
 logging.basicConfig(
@@ -27,6 +24,26 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger("train")
+
+# Check NumPy version and warn if incompatible
+numpy_version = np.__version__
+if numpy_version.startswith('2.'):
+    logger.warning(f"NumPy version {numpy_version} detected. This may cause compatibility issues.")
+    logger.warning("Consider downgrading to numpy<2 with: pip install 'numpy<2'")
+    user_input = input("Continue anyway? (y/n): ")
+    if user_input.lower() != 'y':
+        logger.info("Exiting. Please downgrade NumPy and try again.")
+        sys.exit(0)
+
+# Import project modules
+try:
+    from data import CrystalGraphDataset, CrystalGraphConverter, CrystalGraphCollator
+    from model import CrystalGraphDiffusionModel
+except ImportError as e:
+    logger.error(f"Import error: {e}")
+    logger.error("This may be due to NumPy version incompatibility or missing dependencies.")
+    logger.error("Try: pip install 'numpy<2' torch torch-geometric")
+    sys.exit(1)
 
 def train(args):
     """
@@ -64,6 +81,19 @@ def train(args):
         graph_converter=graph_converter,
         target_properties=args.target_properties
     )
+    
+    # Validate datasets are not empty
+    if len(train_dataset) == 0:
+        logger.error(f"Training dataset is empty. Please check {args.train_data} and ensure data processing completed successfully.")
+        logger.error("Try running the data processing pipeline again: python src/download_jarvis.py")
+        sys.exit(1)
+    
+    if len(val_dataset) == 0:
+        logger.error(f"Validation dataset is empty. Please check {args.val_data} and ensure data processing completed successfully.")
+        logger.error("Try running the data processing pipeline again: python src/download_jarvis.py")
+        sys.exit(1)
+    
+    logger.info(f"Loaded {len(train_dataset)} training samples and {len(val_dataset)} validation samples")
     
     # Create data loaders
     collator = CrystalGraphCollator(target_properties=args.target_properties)
