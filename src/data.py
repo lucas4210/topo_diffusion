@@ -284,7 +284,7 @@ class CrystalGraphDataset(torch.utils.data.Dataset):
         self.property_mapping = {
             "formation_energy_per_atom": ["formation_energy_per_atom", "formation_energy_peratom"],
             "band_gap": ["band_gap", "optb88vdw_bandgap"],
-            "is_topological": ["is_topological"],
+            "is_topological": ["is_topological", "spillage"],  # Use spillage as fallback for is_topological
             "sustainability_score": ["sustainability_score"]
         }
         
@@ -292,17 +292,57 @@ class CrystalGraphDataset(torch.utils.data.Dataset):
         with open(data_path, 'r') as f:
             self.data = json.load(f)
         
-        # Map property names and filter out entries without required properties
+        # Process and filter data
         self.filtered_data = []
         for entry in self.data:
+            # Convert atoms to structure if needed
+            if "structure" not in entry and "atoms" in entry:
+                try:
+                    # Convert JARVIS atoms to pymatgen structure
+                    atoms_dict = entry["atoms"]
+                    structure = self._jarvis_atoms_to_pymatgen(atoms_dict)
+                    entry["structure"] = structure.as_dict()
+                except Exception as e:
+                    logger.warning(f"Failed to convert atoms to structure: {e}")
+                    continue
+            
             # Map property names
             self._map_property_names(entry)
+            
+            # Special handling for is_topological based on spillage
+            if "is_topological" not in entry and "spillage" in entry and entry["spillage"] is not None:
+                # If spillage > 0.5, consider it topological (this is a heuristic)
+                try:
+                    spillage_value = float(entry["spillage"])
+                    entry["is_topological"] = spillage_value > 0.5
+                except (ValueError, TypeError):
+                    # Default to False if spillage can't be converted to float
+                    entry["is_topological"] = False
             
             # Check if all required properties are present
             if all(entry.get(prop) is not None for prop in self.target_properties):
                 self.filtered_data.append(entry)
         
         logger.info(f"Loaded {len(self.filtered_data)} structures with all required properties")
+    
+    def _jarvis_atoms_to_pymatgen(self, atoms_dict):
+        """
+        Convert JARVIS Atoms to pymatgen Structure.
+        
+        Args:
+            atoms_dict: Dictionary representation of JARVIS Atoms
+            
+        Returns:
+            Pymatgen Structure object
+        """
+        # Convert JARVIS Atoms to pymatgen Structure
+        atoms = Atoms.from_dict(atoms_dict)
+        
+        lattice = atoms.lattice.matrix
+        species = atoms.elements
+        coords = atoms.frac_coords
+        
+        return Structure(lattice, species, coords)
         
     def _map_property_names(self, entry):
         """
