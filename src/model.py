@@ -175,7 +175,7 @@ def scatter_softmax(src: torch.Tensor, index: torch.Tensor, dim: int = 0) -> tor
     return recentered_scores_exp / normalizing_constants
 
 
-def scatter_max(src: torch.Tensor, index: torch.Tensor, dim: int = 0) -> Tuple[torch.Tensor, torch.Tensor]:
+def scatter_max(src: torch.Tensor, index: torch.Tensor, dim: int = 0) -> Tuple[torch.Tensor, None]:
     """
     Maximum aggregation for scattered data.
     
@@ -185,9 +185,10 @@ def scatter_max(src: torch.Tensor, index: torch.Tensor, dim: int = 0) -> Tuple[t
         dim: Dimension along which to perform max
         
     Returns:
-        Tuple of (max_values, max_indices)
+        Tuple of (max_values, None)
     """
-    max_value, _ = scatter_reduce(src, index, dim=dim, reduce="max")
+    # We only need the max value, not the indices
+    max_value = scatter_reduce(src, index, dim=dim, reduce="max")
     return max_value, None
 
 
