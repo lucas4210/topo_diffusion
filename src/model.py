@@ -548,7 +548,7 @@ class CrystalGraphDiffusionModel(nn.Module):
         batch: torch.Tensor,
         condition: Optional[torch.Tensor] = None,
         cell: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass of the diffusion model.
         
@@ -562,7 +562,7 @@ class CrystalGraphDiffusionModel(nn.Module):
             cell: Unit cell parameters [batch_size, 3, 3]
             
         Returns:
-            Predicted noise or velocity for the diffusion process
+            Tuple of (predicted noise, predicted properties tensor)
         """
         # Embed node features
         h = self.node_embedding(x)
@@ -590,9 +590,32 @@ class CrystalGraphDiffusionModel(nn.Module):
             h = self.attention_layers[i](h, edge_index, edge_h, batch)
         
         # Predict noise or velocity
-        pred = self.output_layers(h)
+        pred_noise = self.output_layers(h)
         
-        return pred
+        # Get property dictionary
+        prop_dict = self.predict_properties(x, edge_index, edge_attr, batch)
+        
+        # Convert property dictionary to tensor for loss computation
+        # Extract the most important properties and concatenate them
+        # This assumes that 'targets' in the training script has the same structure
+        prop_tensors = []
+        if 'formation_energy' in prop_dict:
+            prop_tensors.append(prop_dict['formation_energy'].unsqueeze(1))
+        if 'is_topological' in prop_dict:
+            prop_tensors.append(prop_dict['is_topological'].unsqueeze(1))
+        if 'sustainability_score' in prop_dict:
+            prop_tensors.append(prop_dict['sustainability_score'].unsqueeze(1))
+            
+        # Concatenate all property tensors into a single tensor
+        # If no properties were found, return a dummy tensor to avoid errors
+        if prop_tensors:
+            pred_properties = torch.cat(prop_tensors, dim=1)
+        else:
+            # Create a dummy tensor with the same batch size
+            batch_size = torch.unique(batch).size(0)
+            pred_properties = torch.zeros((batch_size, 1), device=x.device)
+        
+        return pred_noise, pred_properties
     
     def predict_properties(
         self,
