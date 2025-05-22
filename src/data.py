@@ -692,9 +692,73 @@ class CrystalGraphCollator:
             edge_index = np.zeros((2, 0), dtype=np.int64)
             edge_features = np.zeros((0, graphs[0]["edge_features"].shape[1]), dtype=np.float32)
         
-        # Convert targets to tensors
+        # Convert targets to tensors with robust type conversion
         for prop in self.target_properties:
-            targets[prop] = torch.tensor(targets[prop], dtype=torch.float32)
+            # Ensure all values are properly converted to float
+            converted_values = []
+            for val in targets[prop]:
+                try:
+                    # Handle multi-dimensional values (lists, arrays)
+                    if isinstance(val, (list, tuple, np.ndarray)):
+                        # Extract first element if possible, otherwise use 0.0
+                        if len(val) > 0:
+                            # Recursively handle the first element
+                            first_val = val[0]
+                            if isinstance(first_val, str):
+                                if first_val.lower() == 'true':
+                                    converted_values.append(1.0)
+                                elif first_val.lower() == 'false':
+                                    converted_values.append(0.0)
+                                elif first_val.lower() in ('na', 'nan', 'none', 'null', ''):
+                                    converted_values.append(0.0)
+                                else:
+                                    try:
+                                        converted_values.append(float(first_val))
+                                    except (ValueError, TypeError):
+                                        converted_values.append(0.0)
+                            elif isinstance(first_val, bool):
+                                converted_values.append(1.0 if first_val else 0.0)
+                            elif first_val is None:
+                                converted_values.append(0.0)
+                            else:
+                                try:
+                                    converted_values.append(float(first_val))
+                                except (ValueError, TypeError):
+                                    converted_values.append(0.0)
+                        else:
+                            converted_values.append(0.0)
+                    # Handle string representations of numbers
+                    elif isinstance(val, str):
+                        if val.lower() == 'true':
+                            converted_values.append(1.0)
+                        elif val.lower() == 'false':
+                            converted_values.append(0.0)
+                        elif val.lower() in ('na', 'nan', 'none', 'null', ''):
+                            # Handle non-numeric strings
+                            converted_values.append(0.0)
+                        else:
+                            try:
+                                converted_values.append(float(val))
+                            except (ValueError, TypeError):
+                                converted_values.append(0.0)
+                    # Handle boolean values
+                    elif isinstance(val, bool):
+                        converted_values.append(1.0 if val else 0.0)
+                    # Handle None values
+                    elif val is None:
+                        converted_values.append(0.0)
+                    # Handle numeric values
+                    else:
+                        try:
+                            converted_values.append(float(val))
+                        except (ValueError, TypeError):
+                            converted_values.append(0.0)
+                except Exception as e:
+                    # Catch any other unexpected errors and default to 0.0
+                    logger.warning(f"Unexpected error converting value '{val}' for property '{prop}': {e}. Using 0.0 instead.")
+                    converted_values.append(0.0)
+            
+            targets[prop] = torch.tensor(converted_values, dtype=torch.float32)
         
         # Create batched data
         batched_data = {
