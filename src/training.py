@@ -20,9 +20,9 @@ from datetime import datetime
 import pandas as pd
 from sklearn.metrics import roc_auc_score, mean_absolute_error, r2_score
 
-from src.model import CrystalGraphDiffusionModel, DiffusionProcess
-from src.data import CrystalGraphDataset, CrystalGraphCollator, CrystalGraphConverter
-from src.utils import load_structure_from_file, save_structure_to_file, calculate_sustainability_metrics
+from model import CrystalGraphDiffusionModel, DiffusionProcess
+from data import CrystalGraphDataset, CrystalGraphCollator, CrystalGraphConverter
+from utils import load_structure_from_file, save_structure_to_file, calculate_sustainability_metrics
 
 logger = logging.getLogger(__name__)
 
