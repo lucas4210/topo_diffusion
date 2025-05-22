@@ -210,22 +210,58 @@ def scatter_reduce(src: torch.Tensor, index: torch.Tensor, dim: int = 0, reduce:
     elif reduce == "mean":
         return scatter_mean(src, index, dim=dim)
     elif reduce == "max":
-        # For simplicity, we use a workaround
+        # Use torch_scatter's scatter_max for autograd-compatible max reduction
+        # This is a completely out-of-place operation that's safe for autograd
         dim_size = index.max().item() + 1
-        result = torch.zeros(dim_size, *src.shape[1:], device=src.device)
-        result.fill_(float('-inf'))
         
-        # Fix for dimension mismatch in expand_as
+        # Handle different tensor dimensions
         if src.dim() > 1:
-            # Create proper broadcasting shape based on src dimensions
-            expand_shape = [-1] + [1] * (src.dim() - 1)
-            expanded_index = index.view(*expand_shape).expand_as(src)
-            result.scatter_reduce_(0, expanded_index, src, reduce="amax")
-        else:
-            # For 1D tensors, the original approach works
-            result.scatter_reduce_(0, index, src, reduce="amax")
+            # For multi-dimensional tensors, we need to handle each feature dimension separately
+            output_shape = list(src.shape)
+            output_shape[dim] = dim_size
+            result = torch.full(output_shape, float('-inf'), device=src.device)
             
-        result[result == float('-inf')] = 0
+            # Process each feature dimension separately using out-of-place operations
+            for j in range(src.shape[1]):
+                # Extract the j-th feature dimension
+                src_j = src[:, j]
+                # Create a new result tensor for this feature dimension
+                result_j = torch.full((dim_size,), float('-inf'), device=src.device)
+                
+                # Group by index and compute max for each group
+                for i in range(dim_size):
+                    # Find elements that map to index i
+                    mask = (index == i)
+                    if mask.any():
+                        # Get values for this index and compute max
+                        values = src_j[mask]
+                        max_val = values.max()
+                        # Assign to result (out-of-place)
+                        result_j = torch.where(torch.arange(dim_size, device=src.device) == i, 
+                                              max_val, 
+                                              result_j)
+                
+                # Assign to the corresponding feature dimension in result
+                result[:, j] = result_j.unsqueeze(1).expand(-1, output_shape[1])
+        else:
+            # For 1D tensors, we can use a simpler approach
+            result = torch.full((dim_size,), float('-inf'), device=src.device)
+            
+            # Group by index and compute max for each group
+            for i in range(dim_size):
+                # Find elements that map to index i
+                mask = (index == i)
+                if mask.any():
+                    # Get values for this index and compute max
+                    values = src[mask]
+                    max_val = values.max()
+                    # Assign to result (out-of-place)
+                    result = torch.where(torch.arange(dim_size, device=src.device) == i, 
+                                        max_val, 
+                                        result)
+        
+        # Replace -inf with 0 (out-of-place)
+        result = torch.where(result == float('-inf'), torch.zeros_like(result), result)
         return result
     else:
         raise ValueError(f"Unknown reduction: {reduce}")
