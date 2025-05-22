@@ -599,21 +599,37 @@ class CrystalGraphDiffusionModel(nn.Module):
         # Extract the most important properties and concatenate them
         # This assumes that 'targets' in the training script has the same structure
         prop_tensors = []
+        
+        # Ensure we include all properties in the same order as expected by the training script
+        # The targets tensor has 4 properties, so we need to match that
         if 'formation_energy' in prop_dict:
             prop_tensors.append(prop_dict['formation_energy'].unsqueeze(1))
+        else:
+            # Create a dummy tensor with zeros if property is missing
+            batch_size = torch.unique(batch).size(0)
+            prop_tensors.append(torch.zeros((batch_size, 1), device=x.device))
+            
+        if 'energy_above_hull' in prop_dict:
+            prop_tensors.append(prop_dict['energy_above_hull'].unsqueeze(1))
+        else:
+            batch_size = torch.unique(batch).size(0)
+            prop_tensors.append(torch.zeros((batch_size, 1), device=x.device))
+            
         if 'is_topological' in prop_dict:
             prop_tensors.append(prop_dict['is_topological'].unsqueeze(1))
+        else:
+            batch_size = torch.unique(batch).size(0)
+            prop_tensors.append(torch.zeros((batch_size, 1), device=x.device))
+            
         if 'sustainability_score' in prop_dict:
             prop_tensors.append(prop_dict['sustainability_score'].unsqueeze(1))
+        else:
+            batch_size = torch.unique(batch).size(0)
+            prop_tensors.append(torch.zeros((batch_size, 1), device=x.device))
             
         # Concatenate all property tensors into a single tensor
-        # If no properties were found, return a dummy tensor to avoid errors
-        if prop_tensors:
-            pred_properties = torch.cat(prop_tensors, dim=1)
-        else:
-            # Create a dummy tensor with the same batch size
-            batch_size = torch.unique(batch).size(0)
-            pred_properties = torch.zeros((batch_size, 1), device=x.device)
+        # This ensures we have exactly 4 properties to match the targets tensor
+        pred_properties = torch.cat(prop_tensors, dim=1)
         
         return pred_noise, pred_properties
     
