@@ -19,10 +19,10 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from src.data import JARVISDataDownloader, CrystalGraphConverter, CrystalGraphDataset, CrystalGraphCollator
-from src.model import CrystalGraphDiffusionModel, DiffusionProcess
-from src.training import DiffusionTrainer, MaterialValidator
-from src.utils import (
+from data import JARVISDataDownloader, CrystalGraphConverter, CrystalGraphDataset, CrystalGraphCollator
+from model import CrystalGraphDiffusionModel, DiffusionProcess
+from training import DiffusionTrainer, MaterialValidator
+from utils import (
     setup_logging, 
     load_structure_from_file, 
     save_structure_to_file, 
