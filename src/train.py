@@ -17,8 +17,8 @@ import argparse
 from datetime import datetime
 
 # Import project modules
-from data import CrystalGraphDataset, CrystalGraphConverter, CrystalGraphCollator
-from model import CrystalGraphDiffusionModel
+from src.data import CrystalGraphDataset, CrystalGraphConverter, CrystalGraphCollator
+from src.model import CrystalGraphDiffusionModel
 
 # Configure logging
 logging.basicConfig(
