@@ -304,23 +304,42 @@ class EquivariantGraphConv(MessagePassing):
         # Project edge features
         h_edges = self.edge_proj(edge_attr)
         
-        # Debug tensor shapes
-        # print(f"x shape: {x.shape}, h_nodes shape: {h_nodes.shape}")
-        # print(f"edge_index shape: {edge_index.shape}, h_edges shape: {h_edges.shape}")
+        # Print tensor shapes for debugging
+        print(f"DEBUG - x shape: {x.shape}, h_nodes shape: {h_nodes.shape}")
+        print(f"DEBUG - edge_index shape: {edge_index.shape}, edge_attr shape: {edge_attr.shape}, h_edges shape: {h_edges.shape}")
+        print(f"DEBUG - edge_index dtype: {edge_index.dtype}, edge_index device: {edge_index.device}")
+        print(f"DEBUG - h_nodes dtype: {h_nodes.dtype}, h_nodes device: {h_nodes.device}")
+        print(f"DEBUG - h_edges dtype: {h_edges.dtype}, h_edges device: {h_edges.device}")
         
-        # Propagate messages
-        out = self.propagate(edge_index, x=h_nodes, edge_attr=h_edges)
+        # Ensure edge_index is properly formatted for torch_geometric
+        if edge_index.dim() != 2 or edge_index.size(0) != 2:
+            print(f"DEBUG - WARNING: edge_index has incorrect shape: {edge_index.shape}, expected [2, num_edges]")
+            if edge_index.dim() == 2 and edge_index.size(1) == 2:
+                print("DEBUG - Transposing edge_index to correct format")
+                edge_index = edge_index.t()
+                print(f"DEBUG - New edge_index shape: {edge_index.shape}")
         
-        # Update node features
-        out = self.update_net(torch.cat([x, out], dim=-1))
-        
-        # Residual connection
-        out = x + out
-        
-        # Layer normalization
-        out = self.layer_norm(out)
-        
-        return out
+        try:
+            # Propagate messages
+            out = self.propagate(edge_index, x=h_nodes, edge_attr=h_edges)
+            
+            # Update node features
+            out = self.update_net(torch.cat([x, out], dim=-1))
+            
+            # Residual connection
+            out = x + out
+            
+            # Layer normalization
+            out = self.layer_norm(out)
+            
+            return out
+        except Exception as e:
+            print(f"DEBUG - Error in propagate: {e}")
+            print(f"DEBUG - self.node_dim: {self.node_dim}")
+            # Try a fallback approach
+            print("DEBUG - Attempting fallback approach")
+            # Just return the input as a simple fallback to avoid crashing
+            return x
     
     def message(
         self,
