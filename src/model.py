@@ -213,7 +213,17 @@ def scatter_reduce(src: torch.Tensor, index: torch.Tensor, dim: int = 0, reduce:
         dim_size = index.max().item() + 1
         result = torch.zeros(dim_size, *src.shape[1:], device=src.device)
         result.fill_(float('-inf'))
-        result.scatter_reduce_(0, index.unsqueeze(-1).expand_as(src), src, reduce="amax")
+        
+        # Fix for dimension mismatch in expand_as
+        if src.dim() > 1:
+            # Create proper broadcasting shape based on src dimensions
+            expand_shape = [-1] + [1] * (src.dim() - 1)
+            expanded_index = index.view(*expand_shape).expand_as(src)
+            result.scatter_reduce_(0, expanded_index, src, reduce="amax")
+        else:
+            # For 1D tensors, the original approach works
+            result.scatter_reduce_(0, index, src, reduce="amax")
+            
         result[result == float('-inf')] = 0
         return result
     else:
@@ -244,9 +254,12 @@ class EquivariantGraphConv(MessagePassing):
             hidden_dim: Hidden dimension
             aggr: Aggregation method ("mean", "sum", "max")
         """
-        # Use default node_dim for torch_geometric
-        super().__init__(aggr=aggr)
-        self.node_dim = node_dim
+        # IMPORTANT: node_dim parameter here is the feature dimension size
+        # but torch_geometric's node_dim is the axis index (0 or 1)
+        # We use the default node_dim=-2 for torch_geometric (second to last dimension)
+        super().__init__(aggr=aggr, node_dim=-2)
+        # Rename our parameter to avoid confusion with torch_geometric's node_dim
+        self.node_feature_dim = node_dim
         self.edge_dim = edge_dim
         self.hidden_dim = hidden_dim
         
