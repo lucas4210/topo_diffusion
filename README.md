@@ -18,7 +18,7 @@ The model incorporates multi-objective conditioning on topological properties, s
 
 ```bash
 # Clone the repository
-git clone https://github.com/username/topo_diffusion.git
+git clone https://github.com/brandonyee-cs/topo_diffusion.git
 cd topo_diffusion_refactored
 
 # Create and activate a virtual environment
