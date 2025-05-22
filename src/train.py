@@ -37,8 +37,8 @@ if numpy_version.startswith('2.'):
 
 # Import project modules
 try:
-    from data import CrystalGraphDataset, CrystalGraphConverter, CrystalGraphCollator
-    from model import CrystalGraphDiffusionModel
+    from src.data import CrystalGraphDataset, CrystalGraphConverter, CrystalGraphCollator
+    from src.model import CrystalGraphDiffusionModel
 except ImportError as e:
     logger.error(f"Import error: {e}")
     logger.error("This may be due to NumPy version incompatibility or missing dependencies.")
@@ -177,6 +177,10 @@ def train(args):
             noise_coeff = get_noise_schedule(t, args.diffusion_steps, device)
             signal_coeff = 1 - noise_coeff
             
+            # Unsqueeze coefficients for proper broadcasting
+            noise_coeff = noise_coeff.unsqueeze(1)  # Shape: [num_nodes, 1]
+            signal_coeff = signal_coeff.unsqueeze(1)  # Shape: [num_nodes, 1]
+            
             # Apply noise
             noisy_x = signal_coeff * x + noise_coeff * noise
             
@@ -239,6 +243,10 @@ def train(args):
                 noise = torch.randn_like(x)
                 noise_coeff = get_noise_schedule(t, args.diffusion_steps, device)
                 signal_coeff = 1 - noise_coeff
+                
+                # Unsqueeze coefficients for proper broadcasting
+                noise_coeff = noise_coeff.unsqueeze(1)  # Shape: [num_nodes, 1]
+                signal_coeff = signal_coeff.unsqueeze(1)  # Shape: [num_nodes, 1]
                 
                 # Apply noise
                 noisy_x = signal_coeff * x + noise_coeff * noise
