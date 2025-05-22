@@ -280,17 +280,47 @@ class CrystalGraphDataset(torch.utils.data.Dataset):
         self.target_properties = target_properties or ["formation_energy_per_atom", "band_gap", "is_topological"]
         self.transform = transform
         
+        # Property name mapping from JARVIS to expected names
+        self.property_mapping = {
+            "formation_energy_per_atom": ["formation_energy_per_atom", "formation_energy_peratom"],
+            "band_gap": ["band_gap", "optb88vdw_bandgap"],
+            "is_topological": ["is_topological"],
+            "sustainability_score": ["sustainability_score"]
+        }
+        
         # Load data
         with open(data_path, 'r') as f:
             self.data = json.load(f)
         
-        # Filter out entries without required properties
+        # Map property names and filter out entries without required properties
         self.filtered_data = []
         for entry in self.data:
+            # Map property names
+            self._map_property_names(entry)
+            
+            # Check if all required properties are present
             if all(entry.get(prop) is not None for prop in self.target_properties):
                 self.filtered_data.append(entry)
         
         logger.info(f"Loaded {len(self.filtered_data)} structures with all required properties")
+        
+    def _map_property_names(self, entry):
+        """
+        Map property names from JARVIS format to expected format.
+        
+        Args:
+            entry: Dictionary containing entry data
+        """
+        for target_prop, source_props in self.property_mapping.items():
+            # Skip if target property already exists
+            if entry.get(target_prop) is not None:
+                continue
+                
+            # Try to find value from alternative property names
+            for source_prop in source_props:
+                if source_prop != target_prop and entry.get(source_prop) is not None:
+                    entry[target_prop] = entry[source_prop]
+                    break
     
     def __len__(self) -> int:
         """Get the number of items in the dataset."""
