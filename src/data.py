@@ -435,7 +435,7 @@ class CrystalGraphConverter:
         self.cutoff_radius = cutoff_radius
         self.max_neighbors = max_neighbors
         self.node_features = node_features or ["atomic_number", "electronegativity", "radius", "row", "group", "block"]
-        self.edge_features = edge_features or ["distance", "vector"]
+        self.edge_features = edge_features or ["distance", "vector_x"]  # Reduced to only 2 features
         
         # Initialize neighbor finder
         self.neighbor_finder = CrystalNN(
@@ -601,7 +601,11 @@ class CrystalGraphConverter:
         for feat_name in self.edge_features:
             if feat_name == "distance":
                 features.append(distance)
+            elif feat_name == "vector_x":
+                # Only use the x-component of the vector
+                features.append(cart_diff[0])
             elif feat_name == "vector":
+                # For backward compatibility, but should not be used with current config
                 features.extend(cart_diff)
             else:
                 features.append(0.0)
