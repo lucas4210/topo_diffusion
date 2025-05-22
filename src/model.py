@@ -244,8 +244,8 @@ class EquivariantGraphConv(MessagePassing):
             hidden_dim: Hidden dimension
             aggr: Aggregation method ("mean", "sum", "max")
         """
-        # Set node_dim explicitly for torch_geometric
-        super().__init__(aggr=aggr, node_dim=0)
+        # Use default node_dim for torch_geometric
+        super().__init__(aggr=aggr)
         self.node_dim = node_dim
         self.edge_dim = edge_dim
         self.hidden_dim = hidden_dim
@@ -303,6 +303,10 @@ class EquivariantGraphConv(MessagePassing):
         
         # Project edge features
         h_edges = self.edge_proj(edge_attr)
+        
+        # Debug tensor shapes
+        # print(f"x shape: {x.shape}, h_nodes shape: {h_nodes.shape}")
+        # print(f"edge_index shape: {edge_index.shape}, h_edges shape: {h_edges.shape}")
         
         # Propagate messages
         out = self.propagate(edge_index, x=h_nodes, edge_attr=h_edges)
