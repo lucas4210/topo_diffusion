@@ -1,162 +1,119 @@
 # Running Instructions for Topological Materials Diffusion Project
 
-This document provides detailed instructions for running the refactored codebase for the Generative Diffusion Model for Sustainable Topological Quantum Materials project.
+This document provides detailed instructions for running the Topological Materials Diffusion project, which uses real JARVIS datasets to train a generative diffusion model for sustainable topological quantum materials.
 
-## Setup Environment
+## Environment Setup
 
-First, set up your Python environment:
+1. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
-```bash
-# Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-# Install dependencies
-pip install -r requirements.txt
-```
+3. Install PyTorch and related packages:
+   ```bash
+   pip install torch
+   pip install torch-geometric
+   pip install torch-scatter
+   ```
 
-## Project Structure
+## Data Pipeline
 
-The project has a simplified structure:
+The project uses real data from the JARVIS database. The data pipeline consists of the following steps:
 
-```
-topo_diffusion_refactored/
-├── src/                # Core source code
-│   ├── __init__.py     # Package initialization
-│   ├── data.py         # Data processing and crystal graph representation
-│   ├── model.py        # Diffusion model architecture
-│   ├── training.py     # Training pipeline and validation tools
-│   ├── utils.py        # Utility functions
-│   └── main.py         # Command-line interface and main scripts
-├── config.yaml         # Configuration file
-└── requirements.txt    # Dependencies
-```
+1. **Download JARVIS datasets**:
+   ```bash
+   python src/download_jarvis.py
+   ```
+   This script will:
+   - Download DFT and superconductor datasets from JARVIS
+   - Process the data and extract topological materials
+   - Create train/validation splits
 
-## Command-Line Interface
+2. **Verify downloaded data**:
+   After running the download script, you should have the following files:
+   - `data/raw/dft_3d.json`: Raw DFT data
+   - `data/raw/supercon_3d.json`: Raw superconductor data
+   - `data/processed/processed_dft.json`: Processed DFT data
+   - `data/processed/topological_materials.json`: Extracted topological materials
+   - `data/processed/unified_dataset.json`: Merged dataset
+   - `data/processed/train_dataset.json`: Training split
+   - `data/processed/val_dataset.json`: Validation split
 
-The project provides a command-line interface for all operations:
+## Model Training
 
-### 1. Download Data
+1. **Train the model**:
+   ```bash
+   python src/train.py
+   ```
 
-Download and process JARVIS datasets:
+2. **Training options**:
+   The training script accepts several command-line arguments:
+   ```bash
+   python src/train.py --batch_size 32 --num_epochs 100 --learning_rate 1e-4
+   ```
 
-```bash
-python -m src.main download --output-dir data/raw --limit 1000
-```
+   Key arguments:
+   - `--train_data`: Path to training data (default: `data/processed/train_dataset.json`)
+   - `--val_data`: Path to validation data (default: `data/processed/val_dataset.json`)
+   - `--batch_size`: Batch size (default: 32)
+   - `--num_epochs`: Number of epochs (default: 100)
+   - `--learning_rate`: Learning rate (default: 1e-4)
+   - `--device`: Device to use (default: "cuda" if available, otherwise "cpu")
 
-Options:
-- `--output-dir`: Directory to store downloaded data (default: "data/raw")
-- `--limit`: Limit the number of structures to download (default: all)
-- `--log-level`: Set the logging level (default: "INFO")
+3. **Monitor training**:
+   The training script will output metrics for each epoch, including:
+   - Training loss (noise prediction and property prediction)
+   - Validation loss (noise prediction and property prediction)
 
-### 2. Train Model
+4. **Checkpoints**:
+   The training script saves checkpoints to the `checkpoints` directory:
+   - `best_model.pt`: Best model based on validation loss
+   - `latest_model.pt`: Latest model
 
-Train the diffusion model:
+## Material Generation
 
-```bash
-python -m src.main train --config config.yaml --data-dir data/processed --checkpoint-dir checkpoints
-```
+1. **Generate materials**:
+   ```bash
+   python src/main.py generate --model-checkpoint checkpoints/best_model.pt
+   ```
 
-Options:
-- `--config`: Path to the configuration file (required)
-- `--data-dir`: Directory containing processed data (default: "data/processed")
-- `--checkpoint-dir`: Directory to save checkpoints (default: "checkpoints")
-- `--device`: Device to train on (cuda or cpu) (default: "cuda" if available, else "cpu")
-- `--use-wandb`: Whether to use Weights & Biases for logging (flag)
-- `--log-level`: Set the logging level (default: "INFO")
-
-### 3. Generate Materials
-
-Generate new materials using the trained model:
-
-```bash
-python -m src.main generate --model-checkpoint checkpoints/best_model.pt --num-samples 10 --output-dir generated_materials
-```
-
-Options:
-- `--model-checkpoint`: Path to the model checkpoint (required)
-- `--num-samples`: Number of materials to generate (default: 10)
-- `--batch-size`: Batch size for generation (default: 4)
-- `--num-nodes`: Number of nodes in each generated graph (default: 16)
-- `--condition`: Conditioning parameters (format: 'key1=value1,key2=value2') (default: None)
-- `--output-dir`: Directory to save generated materials (default: "generated_materials")
-- `--device`: Device to generate on (cuda or cpu) (default: "cuda" if available, else "cpu")
-- `--log-level`: Set the logging level (default: "INFO")
-
-### 4. Validate Materials
-
-Validate generated materials:
-
-```bash
-python -m src.main validate --input-dir generated_materials --output-dir validation_results
-```
-
-Options:
-- `--input-dir`: Directory containing materials to validate (required)
-- `--output-dir`: Directory to save validation results (default: "validation_results")
-- `--run-dft`: Whether to run DFT validation (flag)
-- `--log-level`: Set the logging level (default: "INFO")
-
-## Example Workflow
-
-Here's a complete example workflow:
-
-```bash
-# 1. Set up environment
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# 2. Download data
-python -m src.main download --output-dir data/raw --limit 500
-
-# 3. Train model
-python -m src.main train --config config.yaml --checkpoint-dir checkpoints
-
-# 4. Generate materials
-python -m src.main generate --model-checkpoint checkpoints/best_model.pt --num-samples 20 --output-dir generated_materials
-
-# 5. Validate materials
-python -m src.main validate --input-dir generated_materials --output-dir validation_results
-```
-
-## Using as a Python Package
-
-You can also use the codebase as a Python package in your own scripts:
-
-```python
-from src.data import JARVISDataDownloader, CrystalGraphDataset
-from src.model import CrystalGraphDiffusionModel, DiffusionProcess
-from src.training import DiffusionTrainer, MaterialValidator
-from src.utils import visualize_structure, calculate_sustainability_metrics
-
-# Example: Download data
-downloader = JARVISDataDownloader(data_dir="data/raw")
-dft_path = downloader.download_dft_data(limit=100)
-
-# Example: Create and train model
-# ... (see documentation for details)
-
-# Example: Generate and validate materials
-# ... (see documentation for details)
-```
-
-## Configuration
-
-The `config.yaml` file contains all configuration parameters for the model and training process. You can modify this file to adjust hyperparameters, model architecture, and training settings.
-
-## Outputs
-
-- Downloaded data is saved in the specified output directory
-- Model checkpoints are saved in the checkpoint directory
-- Generated materials are saved as CIF files in the output directory
-- Validation results include JSON data and HTML reports
+2. **Validate generated materials**:
+   ```bash
+   python src/main.py validate --input-dir generated_materials
+   ```
 
 ## Troubleshooting
 
-If you encounter any issues:
+1. **Memory issues during training**:
+   - Reduce batch size: `--batch_size 8`
+   - Use CPU if GPU memory is limited: `--device cpu`
 
-1. Check the log files in the respective output directories
-2. Ensure all dependencies are installed correctly
-3. Verify that the data paths are correct
-4. For CUDA errors, try running on CPU with `--device cpu`
+2. **JARVIS download issues**:
+   - The script automatically falls back to using the JARVIS-Tools API if direct download fails
+   - Ensure you have internet connectivity
+
+3. **PyTorch installation issues**:
+   - For CPU-only installation: `pip install torch --index-url https://download.pytorch.org/whl/cpu`
+   - For specific CUDA versions, see PyTorch installation guide
+
+## Project Structure
+
+- `src/`: Source code
+  - `data.py`: Data processing and dataset classes
+  - `model.py`: Diffusion model architecture
+  - `training.py`: Training utilities
+  - `utils.py`: Utility functions
+  - `main.py`: Command-line interface
+  - `download_jarvis.py`: JARVIS data downloader
+  - `train.py`: Training script
+- `data/`: Data directory
+  - `raw/`: Raw data
+  - `processed/`: Processed data
+- `config.yaml`: Model configuration
+- `requirements.txt`: Dependencies

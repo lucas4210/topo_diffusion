@@ -17,7 +17,7 @@ from pymatgen.analysis.local_env import CrystalNN
 import torch
 from jarvis.core.atoms import Atoms
 from jarvis.db.figshare import data as jarvis_data
-from jarvis.core.graphs import Graph
+# Removed import: from jarvis.core.graphs import Graph
 import requests
 from tqdm import tqdm
 import gzip
@@ -839,75 +839,68 @@ class JARVISDataProcessor:
             "F": 585, "Ne": 0.005, "Na": 23600, "Mg": 23300, "Al": 82300, "Si": 282000, "P": 1050,
             "S": 350, "Cl": 145, "Ar": 3.5, "K": 20900, "Ca": 41500, "Sc": 22, "Ti": 5650,
             "V": 120, "Cr": 102, "Mn": 950, "Fe": 56300, "Co": 25, "Ni": 84, "Cu": 60, "Zn": 70,
-            "Ga": 19, "Ge": 1.5, "As": 1.8, "Se": 0.05, "Br": 2.4, "Kr": 0.0001, "Rb": 90,
-            "Sr": 370, "Y": 33, "Zr": 165, "Nb": 20, "Mo": 1.2, "Tc": 0, "Ru": 0.001, "Rh": 0.001,
-            "Pd": 0.015, "Ag": 0.075, "Cd": 0.15, "In": 0.25, "Sn": 2.3, "Sb": 0.2, "Te": 0.001,
-            "I": 0.45, "Xe": 0.00003, "Cs": 3, "Ba": 425, "La": 39, "Ce": 66.5, "Pr": 9.2,
-            "Nd": 41.5, "Pm": 0, "Sm": 7.05, "Eu": 2, "Gd": 6.2, "Tb": 1.2, "Dy": 5.2, "Ho": 1.3,
-            "Er": 3.5, "Tm": 0.52, "Yb": 3.2, "Lu": 0.8, "Hf": 3, "Ta": 2, "W": 1.25, "Re": 0.0007,
-            "Os": 0.0015, "Ir": 0.001, "Pt": 0.005, "Au": 0.004, "Hg": 0.085, "Tl": 0.85, "Pb": 14,
-            "Bi": 0.009, "Po": 0, "At": 0, "Rn": 0, "Fr": 0, "Ra": 0, "Ac": 0, "Th": 9.6,
-            "Pa": 0, "U": 2.7, "Np": 0, "Pu": 0
+            "Ga": 19, "Ge": 1.5, "As": 1.8, "Se": 0.05, "Br": 2.4, "Kr": 0.0001
         }
         
         element_toxicity = {
-            "H": 1, "He": 0, "Li": 3, "Be": 7, "B": 2, "C": 1, "N": 1, "O": 1,
-            "F": 4, "Ne": 0, "Na": 2, "Mg": 1, "Al": 2, "Si": 1, "P": 3, "S": 2,
-            "Cl": 3, "Ar": 0, "K": 2, "Ca": 1, "Sc": 2, "Ti": 1, "V": 4, "Cr": 6,
-            "Mn": 3, "Fe": 2, "Co": 5, "Ni": 4, "Cu": 3, "Zn": 3, "Ga": 3, "Ge": 2,
-            "As": 8, "Se": 5, "Br": 4, "Kr": 0, "Rb": 3, "Sr": 2, "Y": 2, "Zr": 3,
-            "Nb": 2, "Mo": 3, "Tc": 5, "Ru": 4, "Rh": 4, "Pd": 3, "Ag": 3, "Cd": 7,
-            "In": 4, "Sn": 3, "Sb": 5, "Te": 4, "I": 3, "Xe": 0, "Cs": 3, "Ba": 4,
-            "La": 3, "Ce": 3, "Pr": 3, "Nd": 3, "Pm": 4, "Sm": 3, "Eu": 3, "Gd": 3,
-            "Tb": 3, "Dy": 3, "Ho": 3, "Er": 3, "Tm": 3, "Yb": 3, "Lu": 3, "Hf": 3,
-            "Ta": 3, "W": 4, "Re": 4, "Os": 5, "Ir": 4, "Pt": 3, "Au": 2, "Hg": 9,
-            "Tl": 8, "Pb": 8, "Bi": 5, "Po": 10, "At": 10, "Rn": 7, "Fr": 7, "Ra": 9,
-            "Ac": 7, "Th": 7, "Pa": 8, "U": 8, "Np": 8, "Pu": 9
+            "H": 0, "He": 0, "Li": 2, "Be": 8, "B": 3, "C": 0, "N": 0, "O": 0,
+            "F": 3, "Ne": 0, "Na": 1, "Mg": 0, "Al": 2, "Si": 1, "P": 3, "S": 1,
+            "Cl": 2, "Ar": 0, "K": 1, "Ca": 0, "Sc": 2, "Ti": 1, "V": 4, "Cr": 5,
+            "Mn": 3, "Fe": 1, "Co": 4, "Ni": 4, "Cu": 2, "Zn": 2, "Ga": 3, "Ge": 2,
+            "As": 7, "Se": 4, "Br": 3, "Kr": 0
         }
         
-        # Function to calculate sustainability score for a formula
+        # Function to calculate sustainability score
         def calculate_sustainability(formula: str) -> float:
-            # Parse formula to get elements
-            import re
-            elements = re.findall(r'([A-Z][a-z]*)(\d*)', formula)
+            # Parse formula to get element counts
+            element_counts = {}
+            current_element = ""
+            current_count = ""
             
-            if not elements:
-                return 0.5  # Default score
+            for char in formula:
+                if char.isupper():
+                    if current_element:
+                        count = int(current_count) if current_count else 1
+                        element_counts[current_element] = element_counts.get(current_element, 0) + count
+                    current_element = char
+                    current_count = ""
+                elif char.islower():
+                    current_element += char
+                elif char.isdigit():
+                    current_count += char
+            
+            # Add the last element
+            if current_element:
+                count = int(current_count) if current_count else 1
+                element_counts[current_element] = element_counts.get(current_element, 0) + count
             
             # Calculate abundance score (higher is better)
-            abundance_scores = []
-            toxicity_scores = []
-            
-            for element, count in elements:
-                # Convert count to integer (default to 1 if empty)
-                count = int(count) if count else 1
+            total_atoms = sum(element_counts.values())
+            abundance_score = 0
+            for element, count in element_counts.items():
+                if element in element_abundance:
+                    # Log scale for abundance
+                    abundance = element_abundance.get(element, 0.001)
+                    abundance_score += (np.log10(abundance + 1) * count / total_atoms)
                 
-                # Get abundance and calculate score
-                abundance = element_abundance.get(element, 0)
-                # Log scale transformation to handle wide range of values
-                if abundance > 0:
-                    abundance_score = min(1.0, max(0.0, (np.log10(abundance) + 3) / 8))
-                else:
-                    abundance_score = 0.0
-                
-                # Get toxicity and calculate score (higher is better = less toxic)
-                toxicity = element_toxicity.get(element, 5)
-                toxicity_score = 1.0 - (toxicity / 10.0)
-                
-                # Add to lists with weight by count
-                abundance_scores.extend([abundance_score] * count)
-                toxicity_scores.extend([toxicity_score] * count)
+            # Normalize to [0, 1]
+            abundance_score = min(1.0, abundance_score / 5.0)
             
-            # Calculate average scores
-            avg_abundance = sum(abundance_scores) / len(abundance_scores)
-            avg_toxicity = sum(toxicity_scores) / len(toxicity_scores)
+            # Calculate toxicity score (lower is better)
+            toxicity_score = 0
+            for element, count in element_counts.items():
+                if element in element_toxicity:
+                    toxicity_score += (element_toxicity.get(element, 0) * count / total_atoms)
             
-            # Overall sustainability score (weighted average)
-            overall_score = 0.6 * avg_abundance + 0.4 * avg_toxicity
+            # Normalize to [0, 1] and invert (higher is better)
+            toxicity_score = 1.0 - min(1.0, toxicity_score / 8.0)
             
-            return overall_score
+            # Combine scores (equal weight)
+            sustainability_score = 0.5 * abundance_score + 0.5 * toxicity_score
+            
+            return sustainability_score
         
-        # Add sustainability score column
+        # Apply sustainability calculation to each formula
         df = df.with_columns(
             pl.col("formula").map_elements(calculate_sustainability).alias("sustainability_score")
         )

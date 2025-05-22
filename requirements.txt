@@ -1,8 +1,7 @@
 numpy>=1.20.0
 scipy>=1.7.0
 torch>=1.10.0
-torchdata>=0.6.0  # Required for DGL datapipes
-torch-geometric>=2.0.0
+pytorch-geometric>=2.0.0
 pymatgen>=2022.0.0
 ase>=3.22.0
 jarvis-tools>=2021.07.19
