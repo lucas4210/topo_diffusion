@@ -89,7 +89,39 @@ ELEMENT_DATA = {
         "Tb": 6, "Dy": 6, "Ho": 6, "Er": 6, "Tm": 6, "Yb": 6, "Lu": 6, "Hf": 7,
         "Ta": 7, "W": 7, "Re": 7, "Os": 7, "Ir": 8, "Pt": 9, "Au": 9, "Hg": 7,
         "Tl": 6, "Pb": 8, "Bi": 7, "Po": 3, "At": 3, "Rn": 4, "Fr": 4, "Ra": 4,
-        "Ac": 5, "Th": 5, "Pa": 4, "U": 6, "Np": 4, "Pu": 4
+        "Ac": 5, "Th": 5, "Pa": 4,        "U": 6, "Np": 4, "Pu": 4
+    },
+    
+    # Processing energy score (0-10, higher means more energy intensive)
+    "processing_energy": {
+        "H": 2, "He": 1, "Li": 4, "Be": 6, "B": 5, "C": 3, "N": 3, "O": 2,
+        "F": 3, "Ne": 1, "Na": 3, "Mg": 4, "Al": 5, "Si": 4, "P": 4, "S": 3,
+        "Cl": 2, "Ar": 1, "K": 3, "Ca": 4, "Sc": 6, "Ti": 7, "V": 7, "Cr": 6,
+        "Mn": 5, "Fe": 5, "Co": 6, "Ni": 6, "Cu": 5, "Zn": 4, "Ga": 5, "Ge": 6,
+        "As": 5, "Se": 4, "Br": 3, "Kr": 1, "Rb": 3, "Sr": 4, "Y": 6, "Zr": 7,
+        "Nb": 7, "Mo": 6, "Tc": 7, "Ru": 7, "Rh": 7, "Pd": 6, "Ag": 5, "Cd": 4,
+        "In": 5, "Sn": 4, "Sb": 5, "Te": 4, "I": 3, "Xe": 1, "Cs": 3, "Ba": 4,
+        "La": 6, "Ce": 6, "Pr": 6, "Nd": 6, "Pm": 6, "Sm": 6, "Eu": 6, "Gd": 6,
+        "Tb": 6, "Dy": 6, "Ho": 6, "Er": 6, "Tm": 6, "Yb": 6, "Lu": 6, "Hf": 7,
+        "Ta": 7, "W": 7, "Re": 7, "Os": 7, "Ir": 7, "Pt": 6, "Au": 5, "Hg": 4,
+        "Tl": 5, "Pb": 4, "Bi": 5, "Po": 5, "At": 5, "Rn": 1, "Fr": 3, "Ra": 4,
+        "Ac": 6, "Th": 6, "Pa": 7, "U": 7, "Np": 7, "Pu": 7
+    },
+    
+    # Recyclability score (0-10, higher is better)
+    "recyclability": {
+        "H": 8, "He": 7, "Li": 7, "Be": 5, "B": 6, "C": 8, "N": 8, "O": 8,
+        "F": 7, "Ne": 7, "Na": 8, "Mg": 8, "Al": 9, "Si": 8, "P": 7, "S": 7,
+        "Cl": 7, "Ar": 7, "K": 8, "Ca": 8, "Sc": 6, "Ti": 7, "V": 7, "Cr": 8,
+        "Mn": 7, "Fe": 9, "Co": 8, "Ni": 8, "Cu": 9, "Zn": 8, "Ga": 7, "Ge": 7,
+        "As": 6, "Se": 6, "Br": 7, "Kr": 7, "Rb": 7, "Sr": 7, "Y": 6, "Zr": 7,
+        "Nb": 7, "Mo": 8, "Tc": 5, "Ru": 7, "Rh": 8, "Pd": 9, "Ag": 9, "Cd": 7,
+        "In": 7, "Sn": 8, "Sb": 7, "Te": 6, "I": 7, "Xe": 7, "Cs": 7, "Ba": 7,
+        "La": 6, "Ce": 6, "Pr": 6, "Nd": 6, "Pm": 5, "Sm": 6, "Eu": 6, "Gd": 6,
+        "Tb": 6, "Dy": 6, "Ho": 6, "Er": 6, "Tm": 6, "Yb": 6, "Lu": 6, "Hf": 7,
+        "Ta": 7, "W": 8, "Re": 7, "Os": 7, "Ir": 8, "Pt": 9, "Au": 9, "Hg": 7,
+        "Tl": 7, "Pb": 8, "Bi": 7, "Po": 5, "At": 5, "Rn": 6, "Fr": 5, "Ra": 5,
+        "Ac": 5, "Th": 6, "Pa": 5, "U": 7, "Np": 5, "Pu": 5
     }
 }
 

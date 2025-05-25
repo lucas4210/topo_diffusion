@@ -19,10 +19,10 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from data import JARVISDataDownloader, CrystalGraphConverter, CrystalGraphDataset, CrystalGraphCollator
-from model import CrystalGraphDiffusionModel, DiffusionProcess
-from training import DiffusionTrainer, MaterialValidator
-from utils import (
+from src.data import JARVISDataDownloader, CrystalGraphConverter, CrystalGraphDataset, CrystalGraphCollator
+from src.model import CrystalGraphDiffusionModel, DiffusionProcess
+from src.training import DiffusionTrainer, MaterialValidator
+from src.utils import (
     setup_logging, 
     load_structure_from_file, 
     save_structure_to_file, 
@@ -85,7 +85,7 @@ def download_data(args):
     dataset_info = {
         "num_structures": len(dataset),
         "node_feature_dim": converter.get_feature_dimensions()[0],
-        "edge_feature_dim": converter.get_feature_dimensions()[1],
+        "edge_feature_dim": converter.get_featureDimensions()[1],
         "target_properties": dataset.target_properties,
         "data_path": unified_path,
         "processed_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -379,96 +379,76 @@ def generate_materials(args):
     
     # Load model checkpoint
     logger.info(f"Loading model from {args.model_checkpoint}")
-    
     checkpoint = torch.load(args.model_checkpoint, map_location=args.device)
     
-    # Extract model configuration from checkpoint
-    model_state_dict = checkpoint["model_state_dict"]
+    # Get saved arguments and model state from checkpoint
+    saved_args = checkpoint.get('args', {})
+    model_state_dict = checkpoint.get('model_state_dict')
     
-    # Try to infer model parameters from state dict
-    # This is a heuristic approach and might need adjustment
-    node_feature_dim = None
-    edge_feature_dim = None
-    hidden_dim = None
-    num_layers = 0
-    num_heads = None
-    
-    for key, value in model_state_dict.items():
-        if key == "node_embedding.0.weight":
-            node_feature_dim = value.shape[1]
-            hidden_dim = value.shape[0]
-        elif key == "edge_embedding.0.weight":
-            edge_feature_dim = value.shape[1]
-        elif "message_passing_layers" in key and ".weight" in key:
-            layer_idx = int(key.split(".")[1])
-            num_layers = max(num_layers, layer_idx + 1)
-        elif "attention_layers.0.q_proj.weight" in key:
-            num_heads = hidden_dim // value.shape[0]
-    
-    if None in (node_feature_dim, edge_feature_dim, hidden_dim, num_heads):
-        logger.error("Could not infer all model parameters from checkpoint")
-        logger.error("Please provide a configuration file with model parameters")
+    if model_state_dict is None:
+        logger.error("No model state found in checkpoint")
         return None
-    
-    logger.info(f"Inferred model parameters: node_feature_dim={node_feature_dim}, "
-               f"edge_feature_dim={edge_feature_dim}, hidden_dim={hidden_dim}, "
-               f"num_layers={num_layers}, num_heads={num_heads}")
-    
-    # Create model
+        
+    # Create model with saved parameters
+    logger.info("Initializing model")
+    # Get input/output dimensions from the checkpoint
+    state_dict = checkpoint['model_state_dict']
+    # Get correct dimensions from checkpoint
+    node_encoder_in = state_dict['node_encoder.0.weight'].shape[1]  # 10
+    property_predictor_out = state_dict['property_predictor.4.weight'].shape[0]  # 4
+    noise_predictor_out = state_dict['noise_predictor.4.weight'].shape[0]  # 6
+    edge_feature_dim = state_dict['edge_encoder.0.weight'].shape[1]
+    # node_input_dim + condition_dim = 10, so node_input_dim = 6, condition_dim = 4
+    node_input_dim = node_encoder_in - property_predictor_out  # 6
+    condition_dim = property_predictor_out  # 4
+    node_output_dim = noise_predictor_out  # 6
+
     model = CrystalGraphDiffusionModel(
-        node_feature_dim=node_feature_dim,
+        node_input_dim=node_input_dim,
+        node_output_dim=node_output_dim,
         edge_feature_dim=edge_feature_dim,
-        hidden_dim=hidden_dim,
-        num_layers=num_layers,
-        num_heads=num_heads,
-        dropout=0.1,  # Default value
-        condition_dim=32  # Default value
+        hidden_dim=saved_args.get('hidden_dim', 256),
+        num_layers=saved_args.get('num_layers', 6),
+        num_heads=saved_args.get('num_heads', 8),
+        dropout=0.0,  # No dropout during inference
+        condition_dim=condition_dim
     )
     
-    # Load model weights
+    # Load model state
     model.load_state_dict(model_state_dict)
     model.to(args.device)
-    model.eval()
+    model.eval()  # Set to evaluation mode
     
-    # Create diffusion process
-    # Use default parameters if not available in checkpoint
-    diffusion_params = checkpoint.get("diffusion_params", {
-        "num_timesteps": 1000,
-        "beta_schedule": "linear",
-        "beta_start": 0.0001,
-        "beta_end": 0.02
+    # Create diffusion process with same parameters used during training
+    logger.info("Initializing diffusion process")
+    diffusion_params = checkpoint.get('diffusion_params', {
+        'num_timesteps': 1000,
+        'beta_schedule': 'linear',
+        'beta_start': 0.0001,
+        'beta_end': 0.02
     })
     
-    diffusion = DiffusionProcess(
-        num_timesteps=diffusion_params.get("num_timesteps", 1000),
-        beta_schedule=diffusion_params.get("beta_schedule", "linear"),
-        beta_start=diffusion_params.get("beta_start", 0.0001),
-        beta_end=diffusion_params.get("beta_end", 0.02)
-    )
-    
-    # Create trainer for generation
-    trainer = DiffusionTrainer(
-        model=model,
-        diffusion=diffusion,
-        train_loader=None,
-        device=args.device,
-        checkpoint_dir=os.path.dirname(args.model_checkpoint)
-    )
-    
-    # Generate materials
-    logger.info(f"Generating {args.num_samples} materials")
+    try:
+        diffusion = DiffusionProcess(
+            num_timesteps=diffusion_params['num_timesteps'],
+            beta_schedule=diffusion_params['beta_schedule'],
+            beta_start=diffusion_params['beta_start'],
+            beta_end=diffusion_params['beta_end']
+        )
+        diffusion.to(args.device)
+    except Exception as e:
+        logger.error(f"Error initializing diffusion process: {e}")
+        return None
     
     # Set conditioning if provided
     condition = None
     if args.condition:
         try:
             condition_dict = {}
-            for cond_str in args.condition.split(","):
-                key, value = cond_str.split("=")
+            for cond_str in args.condition.split(','):
+                key, value = cond_str.split('=')
                 condition_dict[key.strip()] = float(value.strip())
-            
             logger.info(f"Using conditioning: {condition_dict}")
-            
             # Convert to tensor
             condition = {
                 k: torch.tensor([v], device=args.device)
@@ -476,42 +456,85 @@ def generate_materials(args):
             }
         except Exception as e:
             logger.error(f"Error parsing condition string: {e}")
-            logger.error("Condition should be in the format 'key1=value1,key2=value2'")
+            logger.error("Condition should be in format 'key1=value1,key2=value2'")
             logger.error("Proceeding without conditioning")
+            
+    # Generate materials
+    logger.info(f"Generating {args.num_samples} materials")
     
-    # Generate samples
-    generated_structures = trainer.generate_samples(
-        num_samples=args.num_samples,
-        batch_size=args.batch_size,
-        num_nodes=args.num_nodes,
-        condition=condition,
-        output_dir=args.output_dir
-    )
+    with torch.no_grad():
+        # Initialize progress bar
+        pbar = tqdm(total=args.num_samples, desc="Generating materials")
+        generated_structures = []
+        
+        # Generate in batches
+        num_batches = (args.num_samples + args.batch_size - 1) // args.batch_size
+        
+        for i in range(num_batches):
+            # Calculate batch size (last batch may be smaller)
+            curr_batch_size = min(args.batch_size, 
+                                args.num_samples - i * args.batch_size)
+            
+            # Generate noise with correct input dimension
+            noise = torch.randn(curr_batch_size, args.num_nodes, node_input_dim).to(args.device)
+            
+            # Sample from model
+            sampled = diffusion.p_sample_loop(
+                model,
+                shape=(curr_batch_size, args.num_nodes, node_input_dim),
+                noise=noise,
+                condition=condition,
+                progress=False
+            )
+            
+            # Convert samples to structures
+            for j in range(curr_batch_size):
+                try:
+                    # Convert the generated graph to a crystal structure
+                    # When calling decode_to_structure, pass only the first node_output_dim features
+                    structure = model.decode_to_structure(sampled[j][..., :node_output_dim])
+                    
+                    # Save the structure
+                    output_path = os.path.join(args.output_dir, 
+                                             f"structure_{len(generated_structures):03d}.cif")
+                    save_structure_to_file(structure, output_path)
+                    
+                    generated_structures.append(structure)
+                    pbar.update(1)
+                except Exception as e:
+                    logger.error(f"Error converting sample {j} to structure: {e}")
+        
+        pbar.close()
+
+    logger.info(f"Successfully generated {len(generated_structures)} structures")
     
-    logger.info(f"Generated {len(generated_structures)} materials")
-    
-    # Create visualizations
+    # Create visualizations directory
     vis_dir = os.path.join(args.output_dir, "visualizations")
     os.makedirs(vis_dir, exist_ok=True)
     
+    # Visualize top 10 generated structures
     for i, structure in enumerate(generated_structures[:min(10, len(generated_structures))]):
-        # Visualize structure
-        vis_path = visualize_structure(
-            structure,
-            output_path=os.path.join(vis_dir, f"structure_{i:03d}.png")
-        )
-        logger.info(f"Created visualization for structure {i}: {vis_path}")
+        try:
+            vis_path = visualize_structure(
+                structure,
+                output_path=os.path.join(vis_dir, f"structure_{i:03d}.png")
+            )
+            logger.info(f"Created visualization for structure {i}: {vis_path}")
+        except Exception as e:
+            logger.error(f"Error visualizing structure {i}: {e}")
     
-    # Create sustainability radar chart
+    # Create sustainability radar chart if multiple structures were generated
     if len(generated_structures) > 1:
-        radar_path = create_sustainability_radar_chart(
-            generated_structures,
-            output_path=os.path.join(vis_dir, "sustainability_radar.png")
-        )
-        logger.info(f"Created sustainability radar chart: {radar_path}")
+        try:
+            radar_path = create_sustainability_radar_chart(
+                generated_structures,
+                output_path=os.path.join(vis_dir, "sustainability_radar.png")
+            )
+            logger.info(f"Created sustainability radar chart: {radar_path}")
+        except Exception as e:
+            logger.error(f"Error creating sustainability radar chart: {e}")
     
     logger.info("Material generation completed successfully")
-    
     return args.output_dir
 
 def validate_materials(args):

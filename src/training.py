@@ -20,9 +20,9 @@ from datetime import datetime
 import pandas as pd
 from sklearn.metrics import roc_auc_score, mean_absolute_error, r2_score
 
-from model import CrystalGraphDiffusionModel, DiffusionProcess
-from data import CrystalGraphDataset, CrystalGraphCollator, CrystalGraphConverter
-from utils import load_structure_from_file, save_structure_to_file, calculate_sustainability_metrics
+from src.model import CrystalGraphDiffusionModel, DiffusionProcess
+from src.data import CrystalGraphDataset, CrystalGraphCollator, CrystalGraphConverter
+from src.utils import load_structure_from_file, save_structure_to_file, calculate_sustainability_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -140,23 +140,39 @@ class DiffusionTrainer:
             # Move batch to device
             batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v 
                     for k, v in batch.items()}
-            
+
             # Get node features, edge indices, and edge features
             x = batch["x"]
             edge_index = batch["edge_index"]
             edge_attr = batch["edge_attr"]
             batch_idx = batch["batch"]
-            
+
+            # --- DIAGNOSTIC: Check input tensors for NaN/Inf ---
+            def check_nan_inf(tensor, name):
+                if torch.isnan(tensor).any():
+                    print(f"[NaN DETECTED] in {name} at batch {batch_idx}")
+                if torch.isinf(tensor).any():
+                    print(f"[Inf DETECTED] in {name} at batch {batch_idx}")
+
+            check_nan_inf(x, 'x')
+            check_nan_inf(edge_attr, 'edge_attr')
+            # Check batch targets if present
+            for key in ["z2_invariant", "is_topological", "formation_energy_per_atom", "energy_above_hull", "sustainability_score"]:
+                if key in batch and isinstance(batch[key], torch.Tensor):
+                    check_nan_inf(batch[key], key)
+
             # Sample random timesteps
             t = torch.randint(0, self.diffusion.num_timesteps, (batch["num_graphs"],), 
                              device=self.device).long()
-            
+
             # Sample noise
             noise = torch.randn_like(x)
-            
+            check_nan_inf(noise, 'noise')
+
             # Add noise to input according to diffusion schedule
             x_noisy = self.diffusion.q_sample(x, t, noise=noise)
-            
+            check_nan_inf(x_noisy, 'x_noisy')
+
             # Forward pass to predict noise
             predicted_noise = self.model(
                 x=x_noisy,
@@ -165,7 +181,8 @@ class DiffusionTrainer:
                 t=t,
                 batch=batch_idx
             )
-            
+            check_nan_inf(predicted_noise, 'predicted_noise')
+
             # Prepare conditioning targets if available
             topological_props = None
             if "is_topological" in batch and "z2_invariant" in batch:
@@ -173,7 +190,8 @@ class DiffusionTrainer:
                 z2 = batch["z2_invariant"]
                 is_topo = batch["is_topological"].unsqueeze(1)
                 topological_props = torch.cat([z2, is_topo], dim=1)
-            
+                check_nan_inf(topological_props, 'topological_props')
+
             stability_metrics = None
             if "formation_energy_per_atom" in batch and "energy_above_hull" in batch:
                 # Combine formation energy and energy above hull
@@ -182,11 +200,13 @@ class DiffusionTrainer:
                 if hull.dim() == 1:
                     hull = hull.unsqueeze(1)
                 stability_metrics = torch.cat([formation, hull], dim=1)
-            
+                check_nan_inf(stability_metrics, 'stability_metrics')
+
             sustainability_scores = None
             if "sustainability_score" in batch:
                 sustainability_scores = batch["sustainability_score"]
-            
+                check_nan_inf(sustainability_scores, 'sustainability_scores')
+
             # Compute loss
             loss_dict = self.model.loss_function(
                 pred=predicted_noise,
@@ -196,19 +216,25 @@ class DiffusionTrainer:
                 sustainability_scores=sustainability_scores,
                 loss_weights=self.loss_weights
             )
-            
+
+            # --- DIAGNOSTIC: Check loss values for NaN/Inf ---
+            for k, v in loss_dict.items():
+                if isinstance(v, torch.Tensor):
+                    check_nan_inf(v, f'loss_dict[{k}]')
+
             # Get total loss
             loss = loss_dict["total_loss"]
-            
+            check_nan_inf(loss, 'total_loss')
+
             # Backward pass and optimization
             self.optimizer.zero_grad()
             loss.backward()
-            
+
             # Clip gradients
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-            
+
             self.optimizer.step()
-            
+
             # Log metrics
             if batch_idx % self.log_interval == 0:
                 logger.info(f"Train Epoch: {epoch} [{batch_idx}/{len(self.train_loader)}] "
@@ -216,7 +242,7 @@ class DiffusionTrainer:
                 
                 if self.use_wandb:
                     wandb.log({f"train/{k}": v.item() for k, v in loss_dict.items()})
-            
+
             # Update running metrics
             total_loss += loss.item()
             for k, v in loss_dict.items():

@@ -10,3 +10,4 @@ scikit-learn>=1.0.0
 pyyaml>=6.0
 torch-geometric
 torch-scatter
+wandb>=0.15.0

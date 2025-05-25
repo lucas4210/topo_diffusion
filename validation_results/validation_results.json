@@ -1,0 +1,94 @@
+{
+  "results": [
+    {
+      "is_valid": false,
+      "validity_details": {
+        "has_short_bonds": true,
+        "has_unrealistic_angles": false,
+        "has_isolated_atoms": false,
+        "has_charge_imbalance": false
+      }
+    },
+    {
+      "is_valid": false,
+      "validity_details": {
+        "has_short_bonds": true,
+        "has_unrealistic_angles": false,
+        "has_isolated_atoms": false,
+        "has_charge_imbalance": false
+      }
+    },
+    {
+      "is_valid": false,
+      "validity_details": {
+        "has_short_bonds": true,
+        "has_unrealistic_angles": false,
+        "has_isolated_atoms": false,
+        "has_charge_imbalance": false
+      }
+    },
+    {
+      "is_valid": false,
+      "validity_details": {
+        "has_short_bonds": true,
+        "has_unrealistic_angles": false,
+        "has_isolated_atoms": false,
+        "has_charge_imbalance": false
+      }
+    },
+    {
+      "is_valid": false,
+      "validity_details": {
+        "has_short_bonds": true,
+        "has_unrealistic_angles": false,
+        "has_isolated_atoms": false,
+        "has_charge_imbalance": false
+      }
+    },
+    {
+      "is_valid": false,
+      "validity_details": {
+        "has_short_bonds": true,
+        "has_unrealistic_angles": false,
+        "has_isolated_atoms": false,
+        "has_charge_imbalance": false
+      }
+    },
+    {
+      "is_valid": false,
+      "validity_details": {
+        "has_short_bonds": true,
+        "has_unrealistic_angles": false,
+        "has_isolated_atoms": false,
+        "has_charge_imbalance": false
+      }
+    },
+    {
+      "is_valid": false,
+      "validity_details": {
+        "has_short_bonds": true,
+        "has_unrealistic_angles": false,
+        "has_isolated_atoms": false,
+        "has_charge_imbalance": false
+      }
+    },
+    {
+      "is_valid": false,
+      "validity_details": {
+        "has_short_bonds": true,
+        "has_unrealistic_angles": false,
+        "has_isolated_atoms": false,
+        "has_charge_imbalance": false
+      }
+    },
+    {
+      "is_valid": false,
+      "validity_details": {
+        "has_short_bonds": true,
+        "has_unrealistic_angles": false,
+        "has_isolated_atoms": false,
+        "has_charge_imbalance": false
+      }
+    }
+  ]
+}
