@@ -193,94 +193,67 @@ def train_model(args):
     logger.info("Starting model training")
     
     # Load configuration
+    logger.info(f"Loading configuration from {args.config}")
     config = load_config(args.config)
+    logger.info(f"Loaded configuration with {len(config)} top-level keys")
     
-    # Create checkpoint directory
-    os.makedirs(args.checkpoint_dir, exist_ok=True)
+    # Load dataset
+    train_path = os.path.join(args.data_dir, "train_dataset.json")
+    val_path = os.path.join(args.data_dir, "val_dataset.json")
     
-    # Load dataset info
-    dataset_info_path = os.path.join(args.data_dir, "dataset_info.json")
-    if os.path.exists(dataset_info_path):
-        with open(dataset_info_path, 'r') as f:
-            import json
-            dataset_info = json.load(f)
-        logger.info(f"Loaded dataset info from {dataset_info_path}")
-    else:
-        # Try to infer from the raw data
-        raw_data_dir = os.path.join(os.path.dirname(args.data_dir), "raw")
-        unified_path = os.path.join(raw_data_dir, "unified_dataset.json")
-        
-        if not os.path.exists(unified_path):
-            logger.error(f"Dataset info not found at {dataset_info_path} and no raw data found at {unified_path}")
-            logger.error("Please run the download_data command first")
-            return None
-        
-        # Create graph converter
-        converter = CrystalGraphConverter(
-            cutoff_radius=5.0,
-            max_neighbors=12
-        )
-        
-        # Create temporary dataset to get info
-        temp_dataset = CrystalGraphDataset(
-            data_path=unified_path,
-            graph_converter=converter
-        )
-        
-        # Create dataset info
-        dataset_info = {
-            "num_structures": len(temp_dataset),
-            "node_feature_dim": converter.get_feature_dimensions()[0],
-            "edge_feature_dim": converter.get_feature_dimensions()[1],
-            "target_properties": temp_dataset.target_properties,
-            "data_path": unified_path,
-            "processed_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-        
-        logger.info(f"Created dataset info from raw data at {unified_path}")
-    
-    # Create graph converter
-    converter = CrystalGraphConverter(
-        cutoff_radius=5.0,
-        max_neighbors=12
+    if not os.path.exists(train_path) or not os.path.exists(val_path):
+        logger.error(f"Training data not found at {train_path} or {val_path}")
+        sys.exit(1)
+
+    # Create graph converter with default parameters
+    graph_converter = CrystalGraphConverter(
+        cutoff_radius=5.0,  # Default cutoff radius in Angstroms
+        max_neighbors=12,   # Default max number of neighbors per atom
+        node_features=['atomic_number', 'electronegativity', 'covalent_radius'],
+        edge_features=['distance', 'relative_position']
     )
+        
+    # Create datasets
+    train_dataset = CrystalGraphDataset(train_path, graph_converter)
+    val_dataset = CrystalGraphDataset(val_path, graph_converter)
     
-    # Create dataset
-    dataset = CrystalGraphDataset(
-        data_path=dataset_info["data_path"],
-        graph_converter=converter
-    )
+    if len(train_dataset) == 0:
+        logger.error(f"Training dataset is empty. Please check {train_path}")
+        sys.exit(1)
+        
+    if len(val_dataset) == 0:
+        logger.error(f"Validation dataset is empty. Please check {val_path}")
+        sys.exit(1)
+        
+    logger.info(f"Loaded {len(train_dataset)} training samples and {len(val_dataset)} validation samples")
     
-    # Split dataset into train and validation sets
-    train_size = int(0.8 * len(dataset))
-    val_size = len(dataset) - train_size
-    
-    train_dataset, val_dataset = torch.utils.data.random_split(
-        dataset, [train_size, val_size]
-    )
-    
-    logger.info(f"Split dataset into {train_size} training and {val_size} validation samples")
+    # Get dataset info from first sample
+    first_sample = train_dataset[0]
+    dataset_info = {
+        "node_feature_dim": first_sample["x"].shape[1],
+        "edge_feature_dim": first_sample["edge_attr"].shape[1] if "edge_attr" in first_sample else 0
+    }
     
     # Create data loaders
-    collator = CrystalGraphCollator(target_properties=dataset.target_properties)
+    collator = CrystalGraphCollator()
     
     train_loader = DataLoader(
         train_dataset,
-        batch_size=config["training"]["batch_size"],
+        batch_size=32,  # You can adjust this or add to config
         shuffle=True,
-        collate_fn=collator,
-        num_workers=config["training"].get("num_workers", 0)
+        num_workers=4,
+        collate_fn=collator
     )
     
     val_loader = DataLoader(
         val_dataset,
-        batch_size=config["training"]["batch_size"],
+        batch_size=32,
         shuffle=False,
-        collate_fn=collator,
-        num_workers=config["training"].get("num_workers", 0)
+        num_workers=4,
+        collate_fn=collator
     )
     
-    # Create model
+    # Create model with dataset dimensions
     model = CrystalGraphDiffusionModel(
         node_feature_dim=dataset_info["node_feature_dim"],
         edge_feature_dim=dataset_info["edge_feature_dim"],
